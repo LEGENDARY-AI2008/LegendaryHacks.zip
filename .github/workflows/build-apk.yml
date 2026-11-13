@@ -22,23 +22,20 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
 
-      - run: npx cap sync android
-
-      - name: Check Android project structure
+      - name: Create Android project
         run: |
-          echo "Current directory:"
-          pwd
-          echo "Android manifests:"
-          find . -name AndroidManifest.xml -not -path './node_modules/*'
-          echo "Android directory:"
-          ls -la android || true
+          rm -rf android
+          npx cap add android
+          npx cap sync android
 
       - name: Inject native files
         run: |
           PKG=android/app/src/main/java/com/legendary/hacks
           RES=android/app/src/main/res
+
           mkdir -p "$PKG"
           mkdir -p "$RES/xml"
 
@@ -46,11 +43,12 @@ jobs:
           cp android-overlay/AimLockService.java "$PKG/"
           cp android-overlay/MainActivity.java "$PKG/"
 
+          cp android-overlay/accessibility_service_config.xml "$RES/xml/"
+
           MANIFEST=android/app/src/main/AndroidManifest.xml
 
           if [ ! -f "$MANIFEST" ]; then
-            echo "ERROR: AndroidManifest.xml not found at $MANIFEST"
-            echo "Check the Android project structure output above."
+            echo "ERROR: AndroidManifest.xml not found!"
             exit 1
           fi
 
@@ -83,6 +81,7 @@ jobs:
           for d, s in sizes.items():
               folder = os.path.join(res, f'mipmap-{d}')
               os.makedirs(folder, exist_ok=True)
+
               img = src.resize((s, s), Image.LANCZOS)
 
               for name in (
