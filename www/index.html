@@ -106,7 +106,9 @@
   }
 
   async function openAccess() {
+    initPlugin();
     try {
+      if (!window.HackPlugin) { log('[!] Plugin not ready — try again'); return; }
       await window.HackPlugin.openAccessibilitySettings();
       log('[*] Opened accessibility settings');
       log('[*] Find "Legendary Hacks" and enable it');
@@ -121,10 +123,18 @@
   }
 
   async function startHack() {
+    initPlugin();
     const btn = document.getElementById('btnConnect');
     btn.disabled = true;
     setStatus('CONNECTING...', '#f5c518', 'CHECKING SERVICE...');
     log('[*] Connecting...');
+
+    if (!window.HackPlugin) {
+      log('[!] Plugin not ready — restart app and try again');
+      setStatus('ERROR', '#ff3c3c', 'RESTART APP');
+      btn.disabled = false;
+      return;
+    }
 
     try {
       const result = await window.HackPlugin.connect();
@@ -164,14 +174,24 @@
     log('[*] Aimlock disabled');
   }
 
-  // Load Capacitor plugin
-  document.addEventListener('DOMContentLoaded', () => {
-    if (window.Capacitor) {
-      const { registerPlugin } = window.Capacitor;
-      window.HackPlugin = registerPlugin('HackPlugin');
+  // Load Capacitor plugin -- try immediately and on deviceready
+  function initPlugin() {
+    if (window.Capacitor && window.Capacitor.registerPlugin) {
+      window.HackPlugin = window.Capacitor.registerPlugin('HackPlugin');
+      log('[✓] Plugin loaded');
+    } else if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.HackPlugin) {
+      window.HackPlugin = window.Capacitor.Plugins.HackPlugin;
       log('[✓] Plugin loaded');
     }
-  });
+  }
+
+  // Try on script load
+  initPlugin();
+  // Try after DOM ready
+  document.addEventListener('DOMContentLoaded', initPlugin);
+  // Try after Capacitor fires its ready event
+  document.addEventListener('deviceready', initPlugin);
+  window.addEventListener('load', initPlugin);
 </script>
 </body>
 </html>
