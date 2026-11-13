@@ -114,7 +114,6 @@ public class AimLockService extends AccessibilityService {
                             screenshot.getHardwareBuffer(),
                             screenshot.getColorSpace()
                         ).copy(Bitmap.Config.ARGB_8888, false);
-                        screenshot.release();
                         processFrame(bmp);
                         bmp.recycle();
                     }
