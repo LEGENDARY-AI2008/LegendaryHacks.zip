@@ -15,6 +15,32 @@ jobs:
       - run: npm install
       - run: npx cap add android
       - run: npx cap sync android
+
+      - name: Inject native files
+        run: |
+          PKG=android/app/src/main/java/com/legendary/hacks
+          RES=android/app/src/main/res
+          mkdir -p $PKG
+          mkdir -p $RES/xml
+
+          # Copy Java files
+          cp android-overlay/HackPlugin.java      $PKG/
+          cp android-overlay/AimLockService.java  $PKG/
+          cp android-overlay/MainActivity.java    $PKG/
+
+          # Copy accessibility config
+          cp android-overlay/accessibility_service_config.xml $RES/xml/
+
+          # Patch AndroidManifest to add service + permissions
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          # Add permissions before </manifest>
+          sed -i 's|</manifest>|    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE"/>\n</manifest>|' $MANIFEST
+          # Add service before </application>
+          sed -i 's|</application>|        <service\n            android:name=".AimLockService"\n            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.accessibilityservice.AccessibilityService"/>\n            </intent-filter>\n            <meta-data\n                android:name="android.accessibilityservice"\n                android:resource="@xml/accessibility_service_config"/>\n        </service>\n    </application>|' $MANIFEST
+
+          # Add string for accessibility description
+          sed -i 's|</resources>|    <string name="accessibility_description">Legendary Hacks aimlock service</string>\n</resources>|' android/app/src/main/res/values/strings.xml
+
       - name: Set app icon
         continue-on-error: true
         run: |
@@ -38,7 +64,9 @@ jobs:
               os.rmdir(adaptive)
           print('icon written')
           PY
+
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+
       - uses: actions/upload-artifact@v4
         with:
           name: LegendaryHacks-APK
