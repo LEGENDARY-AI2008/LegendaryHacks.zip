@@ -1,0 +1,45 @@
+name: Build APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm install
+      - run: npx cap add android
+      - run: npx cap sync android
+      - name: Set app icon
+        continue-on-error: true
+        run: |
+          python3 -m pip install --quiet pillow || pip install --quiet --break-system-packages pillow
+          python3 - <<'PY'
+          import os
+          from PIL import Image
+          src = Image.open('www/logo.jpg').convert('RGBA')
+          res = 'android/app/src/main/res'
+          sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+          for d, s in sizes.items():
+              folder = os.path.join(res, f'mipmap-{d}')
+              os.makedirs(folder, exist_ok=True)
+              img = src.resize((s, s), Image.LANCZOS)
+              for name in ('ic_launcher.png', 'ic_launcher_round.png', 'ic_launcher_foreground.png'):
+                  img.save(os.path.join(folder, name))
+          adaptive = os.path.join(res, 'mipmap-anydpi-v26')
+          if os.path.isdir(adaptive):
+              for f in os.listdir(adaptive):
+                  os.remove(os.path.join(adaptive, f))
+              os.rmdir(adaptive)
+          print('icon written')
+          PY
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LegendaryHacks-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
